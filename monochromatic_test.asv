@@ -12,13 +12,54 @@ addpath('../matlab_files/simulated_data/data');
 
 run('../matlab_files/utils/lib/irt/setup.m');
 
-% Adjointness check
+%% Example
+
+% 1. Read an image
+x0 = fitsread('samples/gen_groundtruth_1001.fits'); % read an image
+Nx = size(x0,1);                                    % get the dimensions
+Ny = size(x0,2);
+f = 1.4;                                            % frequency
+super_res=0;                                        % super resolution: to be set to false (0)
+
+% Definition of the operators
+% The measurement operators can be modelled as 
+%               Phi_t = Gw*A
+% where A and G are matrices that will depend on a number of parameters,
+% such as the frequency of observation f. Given the shape of the image, one
+% can build the adjoint operator At.
+if ~exist('../matlab_files/simulated_data/data', 'dir')
+    mkdir('../matlab_files/simulated_data/data');
+end
+
+cd('../matlab_files/');
+[A, At, Gw] = generate_data_basic(Nx,Ny,f,0);
+
+Phi_t = @(x) HS_forward_operator(x,Gw,A);           % Forward (measurement) operator
+Phi = @(y) HS_adjoint_operator(y,Gw,At,Nx,Ny);      % Adjoint operator
+
+% 2. Create the measurement operator and its adjoint
+[A, At, Gw] = generate_data_basic(Nx,Ny,f,super_res,0);
+
+Phi_t = @(x) HS_forward_operator(x,Gw,A);
+Phi = @(y) HS_adjoint_operator(y,Gw,At,Nx,Ny);
+
+% 3. Create the measurements and the back-projection
+y = Phi_t(x0);
+xbp = real(Phi(y));
+
+% fitswrite(xbp,'test_monochromatic.fits')
+imwrite(xbp/max(xbp(:)),'ex_monochromatic.png')
+
+% % Adjointness check
 % u = randn(Nx,Ny);
 % y1_cell = Phi_t(u);
 % y1 = y1_cell{1};
 % v = randn(size(y1));
 % v_adj = Phi({v});
 % norm(real(v'*y1-v_adj(:)'*u(:)))
+
+%% Compare ground truth and bp
+imshow(cat(2,x0,xbp/max(xbp(:))));
 
 %% Setup NN
 input_size = 256;
@@ -113,7 +154,7 @@ end
 
 filenames = dir(fullfile('../matlab_files/samples', '*fits'));
 for i = 1 : numel(filenames)
-    fitswrite(get_bp(['../matlab_files/samples/' filenames(i).name]), ['../back_projections/' filenames(i).name]);
+    imwrite(get_bp(['../matlab_files/samples/' filenames(i).name]), ['../back_projections/' filenames(i).name]);
 end
 
 %% Setup patch extraction datastore
@@ -162,14 +203,12 @@ function bproj = get_bp(file)
     f = 1.4;
     super_res=0; 
 
-    cd('../matlab_files');
     % 2. Create the measurement operator and its adjoint
     [A, At, Gw] = generate_data_basic(Nx,Ny,f,super_res,0);
 
     Phi_t = @(x) HS_forward_operator(x,Gw,A);
     Phi = @(y) HS_adjoint_operator(y,Gw,At,Nx,Ny);
 
-    cd('../DNNastro');
     % 3. Create the measurements and the back-projection
     y = Phi_t(gtr);
     bproj = Phi(y);
