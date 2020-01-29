@@ -113,7 +113,10 @@ end
 
 filenames = dir(fullfile('../matlab_files/samples', '*fits'));
 for i = 1 : numel(filenames)
+    %im = get_bp(['../matlab_files/samples/' filenames(i).name]);
+    %imshow(im);
     fitswrite(get_bp(['../matlab_files/samples/' filenames(i).name]), ['../back_projections/' filenames(i).name]);
+    fprintf('Saved image %s to %s\n', filenames(i).name, '../back_projections/');
 end
 
 %% Setup patch extraction datastore
@@ -125,8 +128,8 @@ augmenter = imageDataAugmenter( ...
 %imshow(fitsread('samples/gen_groundtruth_1001.fits'));
 patchSize = input_size;%[input_size input_size];
 patchds = randomPatchExtractionDatastore( ...
-    imageDatastore('../matlab_files/samples/*.fits', 'ReadFcn', @get_gt), ...
-    imageDatastore('../matlab_files/samples/*.fits', 'ReadFcn', @get_bp), ...
+    imageDatastore('../matlab_files/samples/*.fits', 'ReadFcn', @fitsread), ...
+    imageDatastore('../back_projections/*.fits', 'ReadFcn', @fitsread), ...
     patchSize, 'PatchesPerImage',1, 'DataAugmentation',augmenter);
 
 %shuffle?
@@ -172,5 +175,6 @@ function bproj = get_bp(file)
     cd('../DNNastro');
     % 3. Create the measurements and the back-projection
     y = Phi_t(gtr);
-    bproj = Phi(y);
+    bproj = real(Phi(y));
+    bproj = bproj/max(bproj(:));
 end
