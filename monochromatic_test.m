@@ -112,7 +112,7 @@ if ~exist('../back_projections', 'dir')
 end
 
 filenames = dir(fullfile('../matlab_files/samples', '*fits'));
-for i = 1 : numel(filenames)
+for i = 1 : numel(filenames) -1 % Temp fix, -1 since last fits file seems corrupted
     %im = get_bp(['../matlab_files/samples/' filenames(i).name]);
     %imshow(im);
     fitswrite(get_bp(['../matlab_files/samples/' filenames(i).name]), ['../back_projections/' filenames(i).name]);
@@ -124,8 +124,6 @@ augmenter = imageDataAugmenter( ...
     'RandRotation',@()randi([0,1],1)*90, ...
     'RandXReflection',true);
 
-%addpath('../matlab_files/matlab_files/samples/');
-%imshow(fitsread('samples/gen_groundtruth_1001.fits'));
 patchSize = input_size;%[input_size input_size];
 patchds = randomPatchExtractionDatastore( ...
     imageDatastore('../matlab_files/samples/*.fits', 'ReadFcn', @fitsread), ...
