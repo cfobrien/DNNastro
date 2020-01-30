@@ -12,6 +12,10 @@ addpath('../matlab_files/simulated_data/data');
 
 run('../matlab_files/utils/lib/irt/setup.m');
 
+GEN_SET = 0;
+TRAIN_NET = 0;
+TEST_NET = 1;
+
 % Adjointness check
 % u = randn(Nx,Ny);
 % y1_cell = Phi_t(u);
@@ -107,60 +111,106 @@ lgraph = connectLayers(lgraph, 'Input', 'add_end/in2');
 %analyzeNetwork(lgraph);
 
 %% Generate back projected set
-if ~exist('../back_projections', 'dir')
-    mkdir('../', 'back_projections');
+if (GEN_SET)
+    if ~exist('../back_projections', 'dir')
+        mkdir('../', 'back_projections');
+    end
+
+    if ~exist('../datasets/augmented_dataset_linscale/success', 'dir')
+        mkdir('../', 'datasets/augmented_dataset_linscale/success');
+    end
+
+    if ~exist('../datasets/augmented_dataset_linscale/failed', 'dir')
+        mkdir('../datasets/augmented_dataset_linscale/', 'failed');
+    end
+
+    addpath('../datasets');
+    addpath('../datasets/augmented_dataset_linscale');
+    path = pwd;
+
+    filenames = dir(fullfile('../datasets/augmented_dataset_linscale', '*fits'));
+    %for i = 1 : numel(filenames)
+    for i = 1 : 200
+        try
+            filename = filenames(i).name;
+            im = get_bp(['../datasets/augmented_dataset_linscale/' filename]);
+
+            %gt = fitsread(['../datasets/augmented_dataset_linscale/' filename]);
+            %y = Phi_t(gt);
+            %im = real(Phi(y));
+            %im = im/max(bproj(:));
+
+            fitswrite(im, ['../back_projections/' filename]);
+
+            cd('../datasets/augmented_dataset_linscale/');
+            copyfile(filename, 'success');
+            cd(path);
+
+            %fprintf('Saved image %s to %s\n', filenames(i).name, '../back_projections/');
+        catch
+            warning('failed to get backprojection, ignoring file in dataset');
+            cd('../datasets/augmented_dataset_linscale/');
+            movefile(filename, 'failed');
+            cd(path);
+        end
+    end
 end
 
-addpath('../datasets');
-addpath('../datasets/augmented_dataset_linscale');
+%% Setput datastores, train and save net
+if (TRAIN_NET)
+    augmenter = imageDataAugmenter( ...
+        'RandRotation',@()randi([0,1],1)*90, ...
+        'RandXReflection',true);
 
-filenames = dir(fullfile('../datasets/augmented_dataset_linscale', '*fits'));
-for i = 1 : numel(filenames) -1 % Temp fix, -1 since last fits file seems corrupted
-    %im = get_bp(['../matlab_files/samples/' filenames(i).name]);
-    %imshow(im);
-    fitswrite(get_bp(['../datasets/augmented_dataset_linscale/' filenames(i).name]), ['../back_projections/' filenames(i).name]);
-    fprintf('Saved image %s to %s\n', filenames(i).name, '../back_projections/');
+    patchSize = input_size;%[input_size input_size];
+    patchds = randomPatchExtractionDatastore( ...
+        imageDatastore('../datasets/augmented_dataset_linscale/success/*.fits', 'ReadFcn', @fitsread), ...
+        imageDatastore('../back_projections/*.fits', 'ReadFcn', @fitsread), ...
+        patchSize, 'PatchesPerImage',1, 'DataAugmentation',augmenter);
+
+    %shuffle?
+
+    options = trainingOptions('adam', ...
+        'MaxEpochs',130,...
+        'ExecutionEnvironment','multi-gpu', ...
+        'InitialLearnRate',1e-3, ...
+        'Verbose',false, ...
+        'Plots','training-progress', ...
+        'Shuffle', 'every-epoch', ...
+        'LearnRateSchedule', 'piecewise', ...
+        'LearnRateDropPeriod', 40, ...
+        'LearnRateDropFactor', 0.1, ...
+        'GradientThreshold', 2, ...
+        'MiniBatchSize',7);
+
+    net = trainNetwork(patchds, lgraph, options);
+    trainednet1 = net;
+    save trainednet1
 end
 
-%% Setup patch extraction datastore
-augmenter = imageDataAugmenter( ...
-    'RandRotation',@()randi([0,1],1)*90, ...
-    'RandXReflection',true);
-
-patchSize = input_size;%[input_size input_size];
-patchds = randomPatchExtractionDatastore( ...
-    imageDatastore('../datasets/augmented_dataset_linscale/*.fits', 'ReadFcn', @fitsread), ...
-    imageDatastore('../back_projections/*.fits', 'ReadFcn', @fitsread), ...
-    patchSize, 'PatchesPerImage',1, 'DataAugmentation',augmenter);
-
-%shuffle?
-
-%% Train and save net
-options = trainingOptions('adam', ...
-    'MaxEpochs',130,...
-    'ExecutionEnvironment','multi-gpu', ...
-    'InitialLearnRate',1e-3, ...
-    'Verbose',false, ...
-    'Plots','training-progress', ...
-    'Shuffle', 'every-epoch', ...
-    'LearnRateSchedule', 'piecewise', ...
-    'LearnRateDropPeriod', 40, ...
-    'LearnRateDropFactor', 0.1, ...
-    'GradientThreshold', 2, ...
-    'MiniBatchSize',7);
-
-net = trainNetwork(patchds, lgraph, options);
-trainednet1 = net;
-save supernet1
-
+%% Test net
+if (TEST_NET)
+    gt = fitsread('../datasets/augmented_dataset_linscale/gen_groundtruth_0.fits');
+    %bp = fitsread('../back_projections/gen_groundtruth_0.fits');
+    bp = get_bp('../datasets/augmented_dataset_linscale/gen_groundtruth_0.fits');
+    load trainednet1;
+    res = cell2mat(compute_net(trainednet1, bp, input_size));
+    figure
+    subplot(1,3,1);
+    imshow(gt);
+    title('Ground truth');
+    subplot(1,3,2);
+    imshow(bp);
+    title('Back projection');
+    subplot(1,3,3);
+    imshow(res);
+    title('Reconstruction');
+    
+end
 
 %% Get backprojection
-function gtruth = get_gt(file)
-    gtruth = fitsread(file);
-end
-
 function bproj = get_bp(file)
-    gtr = get_gt(file);
+    gtr = fitsread(file);
     
     Nx = size(gtr,1);
     Ny = size(gtr,2);
@@ -179,4 +229,32 @@ function bproj = get_bp(file)
     y = Phi_t(gtr);
     bproj = real(Phi(y));
     bproj = bproj/max(bproj(:));
+end
+
+%% Compute from patches
+function o = compute_net(net,I,n)
+% This function takes as input:
+%   - net: a neural network
+%   - I: an image
+%   - n: a patchsize
+% It returns:
+%   - o: a picture built by the application of the network on patches of n
+%   by n of the full image I.
+
+imSz = size(I);
+patchSz = [n n];
+xIdxs = [1:patchSz(2):imSz(2) imSz(2)+1]; % [16 64+1]
+yIdxs = [1:patchSz(1):imSz(1) imSz(1)+1];
+patches = cell(length(yIdxs)-1,length(xIdxs)-1);
+for i = 1:length(yIdxs)-1
+    Isub = I(yIdxs(i):yIdxs(i+1)-1,:);
+    for j = 1:length(xIdxs)-1
+        sub_picture = Isub(:,xIdxs(j):xIdxs(j+1)-1);
+        % Here compute the output of the network on each patch
+        if size(sub_picture) == patchSz
+            patches{i,j} = predict(net,sub_picture);
+        end
+    end
+end
+o = patches;
 end
