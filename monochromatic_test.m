@@ -157,7 +157,7 @@ lgraph = connectLayers(lgraph, 'relu22', 'concat2/in2');
 lgraph = connectLayers(lgraph, 'relu12', 'concat1/in2');
 lgraph = connectLayers(lgraph, 'Input', 'add_end/in2');
 
-analyzeNetwork(lgraph);
+%analyzeNetwork(lgraph);
 
 %% Generate back projected set
 if (GEN_SET)
@@ -179,7 +179,7 @@ if (GEN_SET)
 
     filenames = dir(fullfile('../datasets/augmented_dataset_linscale', '*fits'));
     %for i = 1 : numel(filenames)
-    for i = 1 : 200
+    for i = 1 : 500
         try
             filename = filenames(i).name;
             im = get_bp(['../datasets/augmented_dataset_linscale/' filename]);
@@ -220,7 +220,7 @@ if (TRAIN_NET)
     %shuffle?
 
     options = trainingOptions('adam', ...
-        'MaxEpochs',130,...
+        'MaxEpochs',500,...
         'ExecutionEnvironment','multi-gpu', ...
         'InitialLearnRate',1e-3, ...
         'Verbose',false, ...
@@ -233,8 +233,8 @@ if (TRAIN_NET)
         'MiniBatchSize',7);
 
     net = trainNetwork(patchds, lgraph, options);
-    trainednet1 = net;
-    save trainednet1
+    trainednet2 = net;
+    save trainednet2
 end
 
 %% Test net
@@ -242,8 +242,8 @@ if (TEST_NET)
     gt = fitsread('../datasets/augmented_dataset_linscale/gen_groundtruth_10.fits');
     %bp = fitsread('../back_projections/gen_groundtruth_0.fits');
     bp = get_bp('../datasets/augmented_dataset_linscale/gen_groundtruth_10.fits');
-    load trainednet1;
-    res = cell2mat(compute_net(trainednet1, bp, input_size));
+    load trainednet2;
+    res = cell2mat(compute_net(trainednet2, bp, input_size));
     figure
     subplot(1,3,1);
     imshow(gt);
