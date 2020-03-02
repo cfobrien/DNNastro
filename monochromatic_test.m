@@ -13,7 +13,7 @@ addpath('../matlab_files/simulated_data/data');
 run('../matlab_files/utils/lib/irt/setup.m');
 
 GEN_SET = 0;
-TRAIN_NET = 0;
+TRAIN_NET = 1;
 TEST_NET = 1;
 
 % Adjointness check
@@ -179,7 +179,7 @@ if (GEN_SET)
 
     filenames = dir(fullfile('../datasets/augmented_dataset_linscale', '*fits'));
     %for i = 1 : numel(filenames)
-    for i = 1 : 500
+    for i = 1 : 50
         try
             filename = filenames(i).name;
             im = get_bp(['../datasets/augmented_dataset_linscale/' filename]);
@@ -213,14 +213,13 @@ if (TRAIN_NET)
 
     patchSize = input_size;%[input_size input_size];
     patchds = randomPatchExtractionDatastore( ...
-        imageDatastore('../datasets/augmented_dataset_linscale/success/*.fits', 'ReadFcn', @fitsread), ...
-        imageDatastore('../back_projections/*.fits', 'ReadFcn', @fitsread), ...
+        imageDatastore('../datasets/augmented_dataset_linscale/success/*.fits', 'ReadFcn', @fitsread2double), ...
+        imageDatastore('../back_projections/*.fits', 'ReadFcn', @fitsread2double), ...
         patchSize, 'PatchesPerImage',1, 'DataAugmentation',augmenter);
 
-    %shuffle?
 
     options = trainingOptions('adam', ...
-        'MaxEpochs',500,...
+        'MaxEpochs',200,...
         'ExecutionEnvironment','multi-gpu', ...
         'InitialLearnRate',1e-3, ...
         'Verbose',false, ...
@@ -230,7 +229,15 @@ if (TRAIN_NET)
         'LearnRateDropPeriod', 40, ...
         'LearnRateDropFactor', 0.1, ...
         'GradientThreshold', 2, ...
-        'MiniBatchSize',7);
+        'MiniBatchSize',10);
+    
+    options = trainingOptions('sgdm', ...
+        'MaxEpochs',50,...
+        'ExecutionEnvironment','multi-gpu', ...
+        'InitialLearnRate',1e-3, ...
+        'Verbose',false, ...
+        'Plots','training-progress', ...
+        'MiniBatchSize',2);
 
     net = trainNetwork(patchds, lgraph, options);
     trainednet2 = net;
@@ -239,7 +246,7 @@ end
 
 %% Test net
 if (TEST_NET)
-    gt = fitsread('../datasets/augmented_dataset_linscale/gen_groundtruth_10.fits');
+    gt = im2double(fitsread('../datasets/augmented_dataset_linscale/gen_groundtruth_10.fits'));
     %bp = fitsread('../back_projections/gen_groundtruth_0.fits');
     bp = get_bp('../datasets/augmented_dataset_linscale/gen_groundtruth_10.fits');
     load trainednet2;
@@ -253,13 +260,15 @@ if (TEST_NET)
     title('Back projection');
     subplot(1,3,3);
     imshow(res);
-    title('Reconstruction');
+    rsnr = 20*log10(norm(gt(:))/norm(gt(:)-res(:)));
+    title(strcat('Reconstruction SNR: ', num2str(rsnr), ' dB'));
+    rsnr = 20*log10(norm(gt(:))/norm(gt(:)-res(:)));
     
 end
 
 %% Get backprojection
 function bproj = get_bp(file)
-    gtr = fitsread(file);
+    gtr = im2double(fitsread(file));
     
     Nx = size(gtr,1);
     Ny = size(gtr,2);
@@ -278,6 +287,10 @@ function bproj = get_bp(file)
     y = Phi_t(gtr);
     bproj = real(Phi(y));
     bproj = bproj/max(bproj(:));
+end
+
+function im = fitsread2double(file)
+    im = im2double(fitsread(file));
 end
 
 %% Compute from patches
