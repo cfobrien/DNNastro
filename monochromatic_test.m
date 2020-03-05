@@ -12,7 +12,7 @@ addpath('../matlab_files/simulated_data/data');
 
 run('../matlab_files/utils/lib/irt/setup.m');
 
-GEN_SET = 0;
+GEN_SET = 1;
 TRAIN_NET = 1;
 TEST_NET = 1;
 
@@ -25,7 +25,7 @@ TEST_NET = 1;
 % norm(real(v'*y1-v_adj(:)'*u(:)))
 
 %% Setup NN
-input_size = 256;
+input_size = 128;
 num_channels = 32;
 
 layers = [
@@ -178,29 +178,23 @@ if (GEN_SET)
     path = pwd;
 
     filenames = dir(fullfile('../datasets/augmented_dataset_linscale', '*fits'));
-    %for i = 1 : numel(filenames)
-    for i = 1 : 50
+    for i = 1 : numel(filenames)
+    %for i = 1 : 50
         try
             filename = filenames(i).name;
             im = get_bp(['../datasets/augmented_dataset_linscale/' filename]);
-
-            %gt = fitsread(['../datasets/augmented_dataset_linscale/' filename]);
-            %y = Phi_t(gt);
-            %im = real(Phi(y));
-            %im = im/max(bproj(:));
 
             fitswrite(im, ['../back_projections/' filename]);
 
             cd('../datasets/augmented_dataset_linscale/');
             copyfile(filename, 'success');
             cd(path);
-
-            %fprintf('Saved image %s to %s\n', filenames(i).name, '../back_projections/');
+            
         catch
             warning('failed to get backprojection, ignoring file in dataset');
-            cd('../datasets/augmented_dataset_linscale/');
-            movefile(filename, 'failed');
-            cd(path);
+            %cd('../datasets/augmented_dataset_linscale/');
+            %movefile(filename, 'failed');
+            %cd(path);
         end
     end
 end
@@ -216,28 +210,16 @@ if (TRAIN_NET)
         imageDatastore('../datasets/augmented_dataset_linscale/success/*.fits', 'ReadFcn', @fitsread2double), ...
         imageDatastore('../back_projections/*.fits', 'ReadFcn', @fitsread2double), ...
         patchSize, 'PatchesPerImage',1, 'DataAugmentation',augmenter);
-
-
+    
+    
     options = trainingOptions('adam', ...
-        'MaxEpochs',200,...
+        'MaxEpochs',1000,...
         'ExecutionEnvironment','multi-gpu', ...
         'InitialLearnRate',1e-3, ...
         'Verbose',false, ...
         'Plots','training-progress', ...
         'Shuffle', 'every-epoch', ...
-        'LearnRateSchedule', 'piecewise', ...
-        'LearnRateDropPeriod', 40, ...
-        'LearnRateDropFactor', 0.1, ...
-        'GradientThreshold', 2, ...
-        'MiniBatchSize',10);
-    
-    options = trainingOptions('sgdm', ...
-        'MaxEpochs',50,...
-        'ExecutionEnvironment','multi-gpu', ...
-        'InitialLearnRate',1e-3, ...
-        'Verbose',false, ...
-        'Plots','training-progress', ...
-        'MiniBatchSize',2);
+        'MiniBatchSize',16);
 
     net = trainNetwork(patchds, lgraph, options);
     trainednet2 = net;
@@ -286,7 +268,7 @@ function bproj = get_bp(file)
     % 3. Create the measurements and the back-projection
     y = Phi_t(gtr);
     bproj = real(Phi(y));
-    bproj = bproj/max(bproj(:));
+    bproj = rescale(bproj);
 end
 
 function im = fitsread2double(file)
@@ -305,7 +287,7 @@ function o = compute_net(net,I,n)
 
 imSz = size(I);
 patchSz = [n n];
-xIdxs = [1:patchSz(2):imSz(2) imSz(2)+1]; % [16 64+1]
+xIdxs = [1:patchSz(2):imSz(2) imSz(2)+1];
 yIdxs = [1:patchSz(1):imSz(1) imSz(1)+1];
 patches = cell(length(yIdxs)-1,length(xIdxs)-1);
 for i = 1:length(yIdxs)-1
