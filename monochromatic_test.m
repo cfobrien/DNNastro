@@ -12,7 +12,7 @@ addpath('../matlab_files/simulated_data/data');
 
 run('../matlab_files/utils/lib/irt/setup.m');
 
-GEN_SET = 1;
+GEN_SET = 0;
 TRAIN_NET = 1;
 TEST_NET = 1;
 
@@ -178,20 +178,20 @@ if (GEN_SET)
     path = pwd;
 
     filenames = dir(fullfile('../datasets/augmented_dataset_linscale', '*fits'));
-    for i = 1 : numel(filenames)
-    %for i = 1 : 50
+    parfor i = 1 : numel(filenames)
+    %for i = 1 : 1
         try
             filename = filenames(i).name;
             im = get_bp(['../datasets/augmented_dataset_linscale/' filename]);
-
+            
             fitswrite(im, ['../back_projections/' filename]);
-
+            
             cd('../datasets/augmented_dataset_linscale/');
             copyfile(filename, 'success');
             cd(path);
             
         catch
-            warning('failed to get backprojection, ignoring file in dataset');
+            %warning('failed to get backprojection, ignoring file in dataset');
             %cd('../datasets/augmented_dataset_linscale/');
             %movefile(filename, 'failed');
             %cd(path);
@@ -212,14 +212,12 @@ if (TRAIN_NET)
         patchSize, 'PatchesPerImage',1, 'DataAugmentation',augmenter);
     
     
-    options = trainingOptions('adam', ...
-        'MaxEpochs',1000,...
+    options = trainingOptions('sgdm', ...
+        'MaxEpochs',10,...
         'ExecutionEnvironment','multi-gpu', ...
-        'InitialLearnRate',1e-3, ...
-        'Verbose',false, ...
         'Plots','training-progress', ...
         'Shuffle', 'every-epoch', ...
-        'MiniBatchSize',16);
+        'MiniBatchSize',32);
 
     net = trainNetwork(patchds, lgraph, options);
     trainednet2 = net;
@@ -246,6 +244,19 @@ if (TEST_NET)
     title(strcat('Reconstruction SNR: ', num2str(rsnr), ' dB'));
     rsnr = 20*log10(norm(gt(:))/norm(gt(:)-res(:)));
     
+    NFFT = 1024;
+    F1 = fft(gt, NFFT);
+    F2 = fft(bp, NFFT);
+    nVals = 0:NFFT-1;
+    figure;
+    subplot(1,2,1);
+    plot(nVals, abs(F1));
+    subplot(1,2,2);
+    plot(nVals, abs(F2));
+    indices = find(abs(F2) >= 35);
+    F2(indices) = 35;
+    figure;
+    imshow(ifft(F2));
 end
 
 %% Get backprojection
