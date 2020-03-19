@@ -25,7 +25,7 @@ TEST_NET = 1;
 % norm(real(v'*y1-v_adj(:)'*u(:)))
 
 %% Setup NN
-input_size = 128;
+input_size = 512;
 num_channels = 32;
 
 layers = [
@@ -213,7 +213,7 @@ if (TRAIN_NET)
     
     
     options = trainingOptions('sgdm', ...
-        'MaxEpochs',10,...
+        'MaxEpochs',200,...
         'ExecutionEnvironment','multi-gpu', ...
         'Plots','training-progress', ...
         'Shuffle', 'every-epoch', ...
@@ -244,19 +244,19 @@ if (TEST_NET)
     title(strcat('Reconstruction SNR: ', num2str(rsnr), ' dB'));
     rsnr = 20*log10(norm(gt(:))/norm(gt(:)-res(:)));
     
-    NFFT = 1024;
-    F1 = fft(gt, NFFT);
-    F2 = fft(bp, NFFT);
-    nVals = 0:NFFT-1;
-    figure;
-    subplot(1,2,1);
-    plot(nVals, abs(F1));
-    subplot(1,2,2);
-    plot(nVals, abs(F2));
-    indices = find(abs(F2) >= 35);
-    F2(indices) = 35;
-    figure;
-    imshow(ifft(F2));
+%     NFFT = 1024;
+%     F1 = fft(gt, NFFT);
+%     F2 = fft(bp, NFFT);
+%     nVals = 0:NFFT-1;
+%     figure;
+%     subplot(1,2,1);
+%     plot(nVals, abs(F1));
+%     subplot(1,2,2);
+%     plot(nVals, abs(F2));
+%     indices = find(abs(F2) >= 35);
+%     F2(indices) = 35;
+%     figure;
+%     imshow(ifft(F2));
 end
 
 %% Get backprojection
