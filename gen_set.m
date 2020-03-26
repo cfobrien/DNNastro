@@ -2,7 +2,9 @@
 % dataset of ground truths in ./datasets/augmented_dataset_linscale/
 % the successful back projections are saved to ./back_projections/
 
-clear all; close all; clc;
+close all;
+clear;
+clc;
 
 
 %% Setting up paths
@@ -33,7 +35,8 @@ path = pwd;
 cd('../matlab_files');
 
 % Iterate over all images in set
-parfor  i = 1 : numel(filenames)
+for  i = 1 : numel(filenames)
+%parfor  i = 1 : numel(filenames)
     filename = filenames(i).name;
     cd('../matlab_files');
     
