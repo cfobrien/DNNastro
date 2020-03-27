@@ -139,16 +139,10 @@ lgraph = connectLayers(lgraph, 'Input', 'add_end/in2');
 
 
 %% datastores
-gtds = imageDatastore('../datasets/augmented_dataset_linscale/*.fits', 'ReadFcn', @fitsread2double);
-try
-    load bpds.mat
-catch
-    bpds = transform(gtds, @get_bp);
-    save('bpds.mat', 'bpds');
-end
-%bpds = imageDatastore('../back_projections/*.fits', 'ReadFcn', @fitsread2double);
+gtds = imageDatastore('../datasets/augmented_dataset_linscale/*.fits', 'ReadFcn', @fitsreadres2double);
+bpds = imageDatastore('../back_projections/*.fits', 'ReadFcn', @fitsreadres2double);
 
-dstrain = combine(gtds, bpds);
+dstrain = combine(bpds, gtds);
 
 %% options
 %uncomment to use only 2nd gpu (for retards only)
@@ -161,7 +155,6 @@ options = trainingOptions('adam', ...
     'InitialLearnRate',1e-4, ...
     'ExecutionEnvironment','multi-gpu', ...
     'Plots','training-progress', ...
-    'Shuffle', 'never', ... % combined datastores do not support shuffling
     'MiniBatchSize',4);
 
 %% train and save
@@ -169,54 +162,6 @@ net = trainNetwork(dstrain, lgraph, options);
 save net
 
 %% functions
-function im = fitsread2double(file)
-    im = im2double(fitsread(file));
-end
-
-%% Get backprojection
-function bproj = get_bp(im)
-    try
-        gtr = im2double(im);
-        Nx = size(gtr,1);
-        Ny = size(gtr,2);
-        f = 1.4;
-        super_res=0; 
-
-        cd('../matlab_files');
-        % 2. Create the measurement operator and its adjoint
-        [A, At, Gw] = generate_data_basic(Nx,Ny,f,super_res,0);
-
-        Phi_t = @(x) HS_forward_operator(x,Gw,A);
-        Phi = @(y) HS_adjoint_operator(y,Gw,At,Nx,Ny);
-
-        cd('../DNNastro');
-        % 3. Create the measurements and the back-projection
-        y = Phi_t(gtr);
-        bproj = real(Phi(y));
-        bproj = rescale(bproj);
-    catch
-        data = file;
-        dataOut = cell(size(data));
-        for idx = 1:size(data,1)
-            gtr = dataOut(idx,:);
-            Nx = size(gtr,1);
-            Ny = size(gtr,2);
-            f = 1.4;
-            super_res=0; 
-
-            cd('../matlab_files');
-            % 2. Create the measurement operator and its adjoint
-            [A, At, Gw] = generate_data_basic(Nx,Ny,f,super_res,0);
-
-            Phi_t = @(x) HS_forward_operator(x,Gw,A);
-            Phi = @(y) HS_adjoint_operator(y,Gw,At,Nx,Ny);
-
-            cd('../DNNastro');
-            % 3. Create the measurements and the back-projection
-            y = Phi_t(gtr);
-            bproj = real(Phi(y));
-            bproj = rescale(bproj);
-            dataOut(idx,:) = bproj;
-        end
-    end
+function im = fitsreadres2double(file)
+    im = im2double(imresize(fitsread(file), [512 512]));
 end

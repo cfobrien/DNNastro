@@ -18,7 +18,9 @@ addpath('../datasets');
 addpath('../datasets/augmented_dataset_linscale');
 run('../matlab_files/utils/lib/irt/setup.m');
 
-
+if ~exist('../back_projections', 'dir')
+    mkdir('../back_projections/');
+end
 
 %% Create directory to store all ground truths that can't be back projected
 % These must be removed from since GT & BP datasets must be of the same size
@@ -37,11 +39,11 @@ cd('../matlab_files');
 % Iterate over all images in set
 for  i = 1 : numel(filenames)
 %parfor  i = 1 : numel(filenames)
-    filename = filenames(i).name;
+    filename = filenames(i).name
     cd('../matlab_files');
     
-     try
-        gt = im2double(fitsread(filename));
+%     try
+        gt = imresize(im2double(fitsread(filename)),[512 512]);
         Nx = size(gt,1);
         Ny = size(gt,2);
         f = 1.4;
@@ -64,13 +66,13 @@ for  i = 1 : numel(filenames)
         % Write BP image to BP dataset directory
         fitswrite(bp, ['../back_projections/' filename]);
         %printf("Saved %s\n", filename);
-    catch
-        %warning(['Failed to get back projection for image ' filename]);
-        cd('../datasets/augmented_dataset_linscale');
-        copyfile(filename, 'failed');
-        delete(filename);
-        cd('../../matlab_files');
-    end
+%     catch
+%         %warning(['Failed to get back projection for image ' filename]);
+%         cd('../datasets/augmented_dataset_linscale');
+%         copyfile(filename, 'failed');
+%         delete(filename);
+%         cd('../../matlab_files');
+%     end
 
         cd(path);
 end
