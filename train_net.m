@@ -146,20 +146,45 @@ dstrain = combine(bpds, gtds);
 
 %% options
 %uncomment to use only 2nd gpu (for retards only)
-%delete(gcp('nocreate'))
-%parpool('local', numel(1));
-%gpuDevice(2);
+% delete(gcp('nocreate'))
+% parpool('local', numel(1));
+% gpuDevice(2);
 
 options = trainingOptions('adam', ...
-    'MaxEpochs',10,...
+    'MaxEpochs',20,...
     'InitialLearnRate',1e-4, ...
     'ExecutionEnvironment','multi-gpu', ...
     'Plots','training-progress', ...
-    'MiniBatchSize',4);
+    'MiniBatchSize',16);
 
 %% train and save
 net = trainNetwork(dstrain, lgraph, options);
 save net
+
+%% test net
+load net;
+for num_tests = 1 : 10
+    test_idx = randi(numel(dstrain.UnderlyingDatastores{1}.Files));
+    gt = readimage(dstrain.UnderlyingDatastores{2},test_idx);
+    bp = readimage(dstrain.UnderlyingDatastores{1},test_idx);
+    res = predict(net,bp);
+    figure
+    subplot(1,3,1);
+    imshow(gt);
+    title('Ground truth');
+    subplot(1,3,2);
+    imshow(bp);
+    title('Back projection');
+    subplot(1,3,3);
+    imshow(res);
+    rsnr = 20*log10(norm(gt(:))/norm(gt(:)-res(:)));
+    title(strcat('Reconstruction SNR: ', num2str(rsnr), ' dB'));
+    rsnr = 20*log10(norm(gt(:))/norm(gt(:)-res(:)));
+    if ~exist('../results', 'dir')
+        mkdir('../results/');
+    end
+    saveas(gcf, ['../results/net_test_' mat2str(test_idx)]);
+end
 
 %% functions
 function im = fitsreadres2double(file)
