@@ -48,15 +48,20 @@ for  i = 1 : numel(filenames)
         Ny = size(gt,2);
         f = 1.4;
         super_res=0; 
+        sigma = 0.07;
 
         % 2. Create the measurement operator and its adjoint
         [A, At, Gw] = generate_data_basic(Nx,Ny,f,super_res,0);
 
         Phi_t = @(x) HS_forward_operator(x,Gw,A);
         Phi = @(y) HS_adjoint_operator(y,Gw,At,Nx,Ny);
+        
+        % Noise addition operator
+        add_noise = @(y) (y + (randn(size(y)) + 1i*randn(size(y)))*sigma/sqrt(2));
+        noisy = add_noise(gt);
 
         % 3. Create the measurements and the back-projection
-        y = Phi_t(gt);
+        y = Phi_t(noisy);
         bp = real(Phi(y));
         bp = rescale(bp);
         
