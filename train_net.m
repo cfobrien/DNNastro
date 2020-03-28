@@ -162,6 +162,14 @@ net = trainNetwork(dstrain, lgraph, options);
 save net
 
 %% test net
+
+%redefining datastore to enable running test section independantly (yucky)
+gtds = imageDatastore('../datasets/augmented_dataset_linscale/*.fits', 'ReadFcn', @fitsreadres2double);
+bpds = imageDatastore('../back_projections/*.fits', 'ReadFcn', @fitsreadres2double);
+
+dstrain = combine(bpds, gtds);
+
+
 load net;
 for num_tests = 1 : 10
     test_idx = randi(numel(dstrain.UnderlyingDatastores{1}.Files));
