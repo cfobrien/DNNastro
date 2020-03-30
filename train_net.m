@@ -4,7 +4,7 @@ clc;
 
 %% layers
 input_size = 512;
-num_channels = 32;
+num_channels = 64;
 
 layers = [
     imageInputLayer([input_size input_size 1], 'Name','Input')
@@ -142,7 +142,10 @@ lgraph = connectLayers(lgraph, 'Input', 'add_end/in2');
 gtds = imageDatastore('../datasets/augmented_dataset_linscale/*.fits', 'ReadFcn', @fitsreadres2double);
 bpds = imageDatastore('../back_projections/*.fits', 'ReadFcn', @fitsreadres2double);
 
-dstrain = combine(bpds, gtds);
+    
+%dstrain = combine(bpds, gtds);
+dstrain = randomPatchExtractionDatastore(bpds, gtds, [512, 512], 'PatchesPerImage',1);
+
 
 %% options
 %uncomment to use only 2nd gpu (for retards only)
@@ -151,25 +154,17 @@ dstrain = combine(bpds, gtds);
 % gpuDevice(2);
 
 options = trainingOptions('adam', ...
-    'MaxEpochs',20,...
+    'MaxEpochs',50, ...
     'InitialLearnRate',1e-4, ...
     'ExecutionEnvironment','multi-gpu', ...
     'Plots','training-progress', ...
-    'MiniBatchSize',16);
+    'MiniBatchSize',2);
 
 %% train and save
 net = trainNetwork(dstrain, lgraph, options);
 save net
 
 %% test net
-
-%redefining datastore to enable running test section independantly (yucky)
-gtds = imageDatastore('../datasets/augmented_dataset_linscale/*.fits', 'ReadFcn', @fitsreadres2double);
-bpds = imageDatastore('../back_projections/*.fits', 'ReadFcn', @fitsreadres2double);
-
-dstrain = combine(bpds, gtds);
-
-
 load net;
 for num_tests = 1 : 10
     test_idx = randi(numel(dstrain.UnderlyingDatastores{1}.Files));
