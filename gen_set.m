@@ -28,38 +28,41 @@ filenames = dir(fullfile('../datasets/augmented_dataset_linscale', '*fits'));
 path = pwd;
 cd('../matlab_files');
 
+%Nx = size(gt,1);
+%Ny = size(gt,2);
+Nx = 512;
+Ny = 512;
+f = 1.4;
+super_res = 1;%super_res=0; 
+sigma = 30;
+
+% Noise addition operator
+add_noise = @(y) (y + (randn(size(y)) + 1i*randn(size(y)))*sigma/sqrt(2));
+
 % Iterate over all images in set
 for  i = 1 : numel(filenames)
-    filename = filenames(i).name
+    filename = filenames(i).name;
     cd('../matlab_files');
 
     gt = imresize(im2double(fitsread(filename)),[512 512]);
-    Nx = size(gt,1);
-    Ny = size(gt,2);
-    f = 1.4;
-    super_res = 1;%super_res=0; 
-    sigma = 0.0005;
-
+    
     % 2. Create the measurement operator and its adjoint
     [A, At, Gw] = generate_data_basic(Nx,Ny,f,super_res,0);
 
     Phi_t = @(x) HS_forward_operator(x,Gw,A);
     Phi = @(y) HS_adjoint_operator(y,Gw,At,Nx,Ny);
 
-    % Noise addition operator
-    add_noise = @(y) (y + (randn(size(y)) + 1i*randn(size(y)))*sigma/sqrt(2));
-
     % 3. Create the measurements and the back-projection
     y = cell2mat(Phi_t(gt));
-    y_noisy = add_noise(y);
-    bp = real(Phi({y_noisy}));
-    bp = rescale(bp);
+    bp = real(Phi({add_noise(y)}));     bp_noiseless = real(Phi({y}));
+    bp = rescale(bp);                   bp_noiseless = rescale(bp_noiseless);
     
-    rsnr = 20*log10(norm(y(:))/norm(y(:)-y_noisy(:)));
-    fprintf('Reconstruction SNR: %d dB\n', rsnr); 
+    %rsnr = 20*log10(norm(bp_noiseless(:))/norm(bp_noiseless(:)-bp(:)));
+    %fprintf('Reconstruction SNR: %d dB\n', rsnr);
 
     % Write BP image to BP dataset directory
     fitswrite(bp, ['../back_projections/' filename]);
+    %fitswrite(bp_noiseless, ['../back_projections/NOISELESS_' filename]);
     %printf("Saved %s\n", filename);
 
     cd(path);
