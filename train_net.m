@@ -155,9 +155,10 @@ dstrain = randomPatchExtractionDatastore(bpds, gtds, [512, 512], 'PatchesPerImag
 
 options = trainingOptions('adam', ...
     'MaxEpochs',50, ...
-    'InitialLearnRate',1e-4, ...
+    'InitialLearnRate',1e-5, ...
     'ExecutionEnvironment','multi-gpu', ...
     'Plots','training-progress', ...
+    'L2Regularization',0.0005, ...
     'MiniBatchSize',2);
 
 %% train and save
@@ -167,9 +168,9 @@ save net
 %% test net
 load net;
 for num_tests = 1 : 10
-    test_idx = randi(numel(dstrain.UnderlyingDatastores{1}.Files));
-    gt = readimage(dstrain.UnderlyingDatastores{2},test_idx);
-    bp = readimage(dstrain.UnderlyingDatastores{1},test_idx);
+    test_idx = randi(numel(gtds.Files));
+    gt = readimage(gtds,test_idx);
+    bp = readimage(bpds,test_idx);
     res = predict(net,bp);
     figure
     subplot(1,3,1);
