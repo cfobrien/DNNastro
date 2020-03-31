@@ -183,7 +183,6 @@ for num_tests = 1 : 10
     imshow(res);
     rsnr = 20*log10(norm(gt(:))/norm(gt(:)-res(:)));
     title(strcat('Reconstruction SNR: ', num2str(rsnr), ' dB'));
-    rsnr = 20*log10(norm(gt(:))/norm(gt(:)-res(:)));
     if ~exist('../results', 'dir')
         mkdir('../results/');
     end

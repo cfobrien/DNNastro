@@ -38,7 +38,7 @@ for  i = 1 : numel(filenames)
     Ny = size(gt,2);
     f = 1.4;
     super_res = 1;%super_res=0; 
-    sigma = 0.07;
+    sigma = 0.0005;
 
     % 2. Create the measurement operator and its adjoint
     [A, At, Gw] = generate_data_basic(Nx,Ny,f,super_res,0);
@@ -50,12 +50,13 @@ for  i = 1 : numel(filenames)
     add_noise = @(y) (y + (randn(size(y)) + 1i*randn(size(y)))*sigma/sqrt(2));
 
     % 3. Create the measurements and the back-projection
-    y = add_noise(cell2mat(Phi_t(gt)));
-    bp = real(Phi({y}));
+    y = cell2mat(Phi_t(gt));
+    y_noisy = add_noise(y);
+    bp = real(Phi({y_noisy}));
     bp = rescale(bp);
-
-    % Uncomment to ensure BP looks like it should
-    %imshow(bp);
+    
+    rsnr = 20*log10(norm(y(:))/norm(y(:)-y_noisy(:)));
+    fprintf('Reconstruction SNR: %d dB\n', rsnr); 
 
     % Write BP image to BP dataset directory
     fitswrite(bp, ['../back_projections/' filename]);
