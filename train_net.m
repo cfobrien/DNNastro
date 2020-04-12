@@ -148,18 +148,18 @@ dstrain = randomPatchExtractionDatastore(bpds, gtds, [512, 512], 'PatchesPerImag
 
 
 %% options
-%uncomment to use only 2nd gpu (for retards only)
-% delete(gcp('nocreate'))
-% parpool('local', numel(1));
-% gpuDevice(2);
+%uncomment to use only 2nd gpu
+delete(gcp('nocreate'))
+parpool('local', numel(1));
+gpuDevice(2);
 
 options = trainingOptions('adam', ...
     'MaxEpochs',50, ...
     'InitialLearnRate',1e-5, ...
     'ExecutionEnvironment','multi-gpu', ...
     'Plots','training-progress', ...
-    'L2Regularization',0.0005, ...
     'MiniBatchSize',2);
+%'L2Regularization',0.00001, ...
 
 %% train and save
 net = trainNetwork(dstrain, lgraph, options);
@@ -171,7 +171,12 @@ for num_tests = 1 : 10
     test_idx = randi(numel(gtds.Files));
     gt = readimage(gtds,test_idx);
     bp = readimage(bpds,test_idx);
-    res = predict(net,bp);
+
+    max_gt = max(max(gt));
+    bp = bp .* max_gt;
+    
+    res = im2double(predict(net,bp));
+    
     figure
     subplot(1,3,1);
     imshow(gt);
@@ -181,6 +186,7 @@ for num_tests = 1 : 10
     title('Back projection');
     subplot(1,3,3);
     imshow(res);
+    impixelinfo;
     rsnr = 20*log10(norm(gt(:))/norm(gt(:)-res(:)));
     title(strcat('Reconstruction SNR: ', num2str(rsnr), ' dB'));
     if ~exist('../results', 'dir')
@@ -190,6 +196,10 @@ for num_tests = 1 : 10
 end
 
 %% functions
+function A = normalise(A)
+    A = (A-min(A(:))) ./ (max(A(:)-min(A(:))));
+end
+
 function im = fitsreadres2double(file)
-    im = im2double(imresize(fitsread(file), [512 512]));
+    im = normalise(imresize(fitsread(file), [512 512]));
 end
