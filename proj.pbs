@@ -1,0 +1,15 @@
+#!/bin/bash --login
+
+#PBS -N proj
+#PBS -q gpu
+#PBS -l select=1:ncpus=2:ngpus=4
+
+#PBS -l walltime=6:00:00
+
+#PBS -A dc005-gpu-ajs9
+
+module load matlab
+
+cd DNNastro/
+
+matlab -nodisplay -nosplash -nodesktop -r "run('gen_set.m');exit;"
