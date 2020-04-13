@@ -33,7 +33,7 @@ Nx = 512;
 Ny = 512;
 f = 1.4;
 super_res = 1;%super_res=0; 
-sigma = 30;
+sigma = 0.07;%30; ASK MATTHIEU ABOUT VALUE
 
 % Noise addition operator
 add_noise = @(y) (y + (randn(size(y)) + 1i*randn(size(y)))*sigma/sqrt(2));
@@ -105,10 +105,7 @@ for  i = 1 : 1%numel(filenames)
             fprev = fval;
             xprev = xt;
             xt = Psi(shrink(Psit(xt - delta*normalise(real(Phi({st + nt - vt})))), delta * rho^(-1)));
-            test1 = Phi_t(xt);
-            test2 = cell2mat(test1);
-            st = test2 - y;
-            %st = cell2mat(Phit(xt)) - y;
+            st = cell2mat(Phit(xt)) - y;
             nt = sc(vt - st);
             vt = vt - (st + nt);
             t = t + 1;
@@ -130,6 +127,7 @@ for  i = 1 : 1%numel(filenames)
     cd(path);
 end
 
-function A = normalise(A)
-    A = (A-min(A(:))) ./ (max(A(:)-min(A(:))));
+function A_norm = normalise(A)
+    A_norm = (A-min(A(:))) ./ (max(A(:)-min(A(:))));
+    A_norm(isnan(A_norm)) = 0;
 end
