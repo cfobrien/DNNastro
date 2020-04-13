@@ -66,14 +66,19 @@ for  i = 1 : numel(filenames)
     bp = normalise(real(Phi({add_noise(y)})));
     
     bp = bp .* max_gt;
-    %imshow(cat(2, gt, bp));
-    %pause
+    
+    %Pre-processing
+    %sigma-clipping
+    gt = sigma_clip(gt);
+    bp = sigma_clip(bp);
+    fitswrite(gt, ['../preprocessed/gt/' filename]);
+    fitswrite(gt, ['../preprocessed/bp/' filename]);
      
     %rsnr = 20*log10(norm(bp_noiseless(:))/norm(bp_noiseless(:)-bp(:)));
     %fprintf('Reconstruction SNR: %d dB\n', rsnr);
 
     % Write BP image to BP dataset directory
-    fitswrite(bp, ['../back_projections/' filename]);
+    %fitswrite(bp, ['../back_projections/' filename]);
     %fitswrite(bp_noiseless, ['../back_projections/NOISELESS_' filename]);
     %printf("Saved %s\n", filename);
 
@@ -84,3 +89,14 @@ function A_norm = normalise(A)
     A_norm = (A-min(A(:))) ./ (max(A(:)-min(A(:))));
     A_norm(isnan(A_norm)) = 0;
 end
+
+%sigma-clipping: remove all pixels that don't fall into the range [mean-stddev*a, mean+stddev*a]
+function im = sigma_clip(im)
+    m = sum(im(:))/numel(im(:));
+    sigma = std(im); %std is a native matlab function
+    a = 0.1; %Choose value which works best
+    
+    im(im<(m-sigma*a)) = 0;
+    %im(im>(m+sigma*a)) = 0;
+end
+

@@ -139,8 +139,9 @@ lgraph = connectLayers(lgraph, 'Input', 'add_end/in2');
 
 
 %% datastores
+%gtds = imageDatastore('../preprocessed/gt/*.fits', 'ReadFcn', @fitsreadres2double);
 gtds = imageDatastore('../datasets/augmented_dataset_linscale/*.fits', 'ReadFcn', @fitsreadres2double);
-bpds = imageDatastore('../back_projections/*.fits', 'ReadFcn', @fitsreadres2double);
+bpds = imageDatastore('../preprocessed/bp/*.fits', 'ReadFcn', @fitsreadres2double);
 
     
 %dstrain = combine(bpds, gtds);
@@ -149,16 +150,16 @@ dstrain = randomPatchExtractionDatastore(bpds, gtds, [512, 512], 'PatchesPerImag
 
 %% options
 %uncomment to use only 2nd gpu
-% delete(gcp('nocreate'))
-% parpool('local', numel(1));
-% gpuDevice(2);
+delete(gcp('nocreate'))
+parpool('local', numel(1));
+gpuDevice(2);
 
 options = trainingOptions('adam', ...
-    'MaxEpochs',50, ...
-    'InitialLearnRate',1e-5, ...
+    'MaxEpochs',15, ...
+    'InitialLearnRate',1e-4, ...
     'ExecutionEnvironment','multi-gpu', ...
     'Plots','training-progress', ...
-    'MiniBatchSize',2);
+    'MiniBatchSize',4);
 %'L2Regularization',0.00001, ...
 
 %% train and save
