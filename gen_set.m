@@ -46,7 +46,10 @@ Phi_t = @(x) HS_forward_operator(x,Gw,A);
 Phi = @(y) HS_adjoint_operator(y,Gw,At,Nx,Ny);
 
 %% Iterate over all images in set
-for  i = 1 : numel(filenames)
+%Attention: make this a parfor if generating operators only once.
+%or a regular for otherwise. Ask matthieu if we need to generate operators once per
+%image
+parfor  i = 1 : numel(filenames)
     filename = filenames(i).name;
     cd('../matlab_files');
 
@@ -66,14 +69,8 @@ for  i = 1 : numel(filenames)
     bp = normalise(real(Phi({add_noise(y)})));
     
     bp = bp .* max_gt;
+    fitswrite(bp, ['../back_projections/' filename]);
     
-    %Pre-processing
-    %sigma-clipping
-    gt = sigma_clip(gt);
-    bp = sigma_clip(bp);
-    fitswrite(gt, ['../preprocessed/gt/' filename]);
-    fitswrite(gt, ['../preprocessed/bp/' filename]);
-     
     %rsnr = 20*log10(norm(bp_noiseless(:))/norm(bp_noiseless(:)-bp(:)));
     %fprintf('Reconstruction SNR: %d dB\n', rsnr);
 

@@ -38,7 +38,7 @@ parfor  i = 1 : numel(gt_filenames)
     
     %% Write preprocessed files ready for training
     fitswrite(gt, ['../preprocessed/gt/' filename]);
-    fitswrite(gt, ['../preprocessed/bp/' filename]);
+    fitswrite(bp, ['../preprocessed/bp/' filename]);
     
 end
 
@@ -51,7 +51,7 @@ end
 function im = sigma_clip(im)
 m = sum(im(:))/numel(im(:));
 sigma = std(im); %std is a native matlab function
-a = 3; %Choose value which works best
+a = 5; %Choose value which works best
 
 im(im<(m-sigma*a)) = 0;
 %im(im>(m+sigma*a)) = 0;
