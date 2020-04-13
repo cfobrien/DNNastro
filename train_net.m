@@ -149,9 +149,9 @@ dstrain = randomPatchExtractionDatastore(bpds, gtds, [512, 512], 'PatchesPerImag
 
 %% options
 %uncomment to use only 2nd gpu
-delete(gcp('nocreate'))
-parpool('local', numel(1));
-gpuDevice(2);
+% delete(gcp('nocreate'))
+% parpool('local', numel(1));
+% gpuDevice(2);
 
 options = trainingOptions('adam', ...
     'MaxEpochs',50, ...
@@ -172,10 +172,10 @@ for num_tests = 1 : 10
     gt = readimage(gtds,test_idx);
     bp = readimage(bpds,test_idx);
 
-    max_gt = max(max(gt));
+    max_gt = max(gt(:));
     bp = bp .* max_gt;
     
-    res = im2double(predict(net,bp));
+    res = normalise(predict(net,bp));
     
     figure
     subplot(1,3,1);
@@ -196,8 +196,9 @@ for num_tests = 1 : 10
 end
 
 %% functions
-function A = normalise(A)
-    A = (A-min(A(:))) ./ (max(A(:)-min(A(:))));
+function A_norm = normalise(A)
+    A_norm = (A-min(A(:))) ./ (max(A(:)-min(A(:))));
+    A_norm(isnan(A_norm)) = 0;
 end
 
 function im = fitsreadres2double(file)

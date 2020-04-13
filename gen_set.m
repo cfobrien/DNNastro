@@ -39,41 +39,36 @@ sigma = 30;
 % Noise addition operator
 add_noise = @(y) (y + (randn(size(y)) + 1i*randn(size(y)))*sigma/sqrt(2));
 
-% Iterate over all images in set
+% 2. Create the measurement operator and its adjoint
+[A, At, Gw] = generate_data_basic(Nx,Ny,f,super_res,0);
+
+Phi_t = @(x) HS_forward_operator(x,Gw,A);
+Phi = @(y) HS_adjoint_operator(y,Gw,At,Nx,Ny);
+
+%% Iterate over all images in set
 for  i = 1 : numel(filenames)
     filename = filenames(i).name;
     cd('../matlab_files');
 
     gt = fitsread(filename);
-    max_gt = max(max(gt));
+    max_gt = max(gt(:));
     
-    %gt = imresize(im2double(gt),[512 512]);
     gt = imresize((normalise(gt)),[512 512]);
     
-    
-    clear A; clear At; clear Gw;
-    clear Phi_t;
-    clear Phi;
-    
     % 2. Create the measurement operator and its adjoint
-    [A, At, Gw] = generate_data_basic(Nx,Ny,f,super_res,0);
-    
-    Phi_t = @(x) HS_forward_operator(x,Gw,A);
-    Phi = @(y) HS_adjoint_operator(y,Gw,At,Nx,Ny);
-
-    
+    %[A, At, Gw] = generate_data_basic(Nx,Ny,f,super_res,0);
+ 
+    %Phi_t = @(x) HS_forward_operator(x,Gw,A);
+    %Phi = @(y) HS_adjoint_operator(y,Gw,At,Nx,Ny);  
     
     % 3. Create the measurements and the back-projection
     y = cell2mat(Phi_t(gt));
-    bp = real(Phi({add_noise(y)}));
-    bp = normalise(bp);
-    bp = bp .* max_gt;
-     %figure
-     %subplot(1,2,1);
-     %imshow(gt);
-     %subplot(1,2,2);
-     %imshow(bp);
+    bp = normalise(real(Phi({add_noise(y)})));
     
+    bp = bp .* max_gt;
+    %imshow(cat(2, gt, bp));
+    %pause
+     
     %rsnr = 20*log10(norm(bp_noiseless(:))/norm(bp_noiseless(:)-bp(:)));
     %fprintf('Reconstruction SNR: %d dB\n', rsnr);
 
@@ -85,6 +80,7 @@ for  i = 1 : numel(filenames)
     cd(path);
 end
 
-function A = normalise(A)
-    A = (A-min(A(:))) ./ (max(A(:)-min(A(:))));
+function A_norm = normalise(A)
+    A_norm = (A-min(A(:))) ./ (max(A(:)-min(A(:))));
+    A_norm(isnan(A_norm)) = 0;
 end
