@@ -141,18 +141,20 @@ lgraph = connectLayers(lgraph, 'Input', 'add_end/in2');
 %% datastores
 %gtds = imageDatastore('../preprocessed/gt/*.fits', 'ReadFcn', @fitsreadres2double);
 gtds = imageDatastore('../datasets/augmented_dataset_linscale/*.fits', 'ReadFcn', @fitsreadres2double);
-bpds = imageDatastore('../preprocessed/bp/*.fits', 'ReadFcn', @fitsreadres2double);
+%bpds = imageDatastore('../preprocessed/bp/*.fits', 'ReadFcn', @fitsreadres2double);
+bpds = imageDatastore('../back_projections/*.fits', 'ReadFcn', @fitsreadres2double);
 
     
 %dstrain = combine(bpds, gtds);
-dstrain = randomPatchExtractionDatastore(bpds, gtds, [512, 512], 'PatchesPerImage',1);
+augmenter = imageDataAugmenter('RandRotation',[0 90],'RandXReflection',true);
+dstrain = randomPatchExtractionDatastore(bpds, gtds, [512, 512], 'PatchesPerImage',1, 'DataAugmentation',augmenter);
 
 
 %% options
 %uncomment to use only 2nd gpu
-delete(gcp('nocreate'))
-parpool('local', numel(1));
-gpuDevice(2);
+%delete(gcp('nocreate'))
+%parpool('local', numel(1));
+%gpuDevice(2);
 
 options = trainingOptions('adam', ...
     'MaxEpochs',15, ...
@@ -163,6 +165,9 @@ options = trainingOptions('adam', ...
 %'L2Regularization',0.00001, ...
 
 %% train and save
+%uncomment to continue training previously trained network
+load net; lgraph = layerGraph(net);
+
 net = trainNetwork(dstrain, lgraph, options);
 save net
 
