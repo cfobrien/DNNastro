@@ -26,8 +26,6 @@ dwtmode('per');
 
 path = pwd;
 
-%Nx = size(gt,1);
-%Ny = size(gt,2);
 Nx = 512;
 Ny = 512;
 f = 1.4;
@@ -37,7 +35,9 @@ sigma = 0.07;
 % Noise addition operator
 add_noise = @(y) (y + (randn(size(y)) + 1i*randn(size(y)))*sigma/sqrt(2));
 
-for i = 1 : 1 %numel(filenames)
+arr_snr = zeros(50, 1);
+
+for i = 1 : 50 %numel(filenames)
     
     filename = filenames(i).name;
 
@@ -102,10 +102,11 @@ for i = 1 : 1 %numel(filenames)
     end
     
     rsnr = 20*log10(norm(gt(:))/norm(gt(:)-xt(:)));
+    rsnr_bp = 20*log10(norm(gt(:))/norm(gt(:)-bp(:)));
     result = cat(2,gt,bp,xt);
     imshow(result);
-    fprintf("Reconstructed and saved image to %s after %d iterations, snr: %d\n", ['../m1/' filenames(i).name], t, rsnr);
-    
+    fprintf("Reconstructed in %d iterations; bp snr: %d, snr: %d\n", t, rsnr_bp, rsnr);
+    arr_snr(i) = rsnr;
 end
 
 function A_norm = normalise(A)
