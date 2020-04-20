@@ -40,6 +40,7 @@ arr_snr = zeros(50, 1);
 for i = 1 : 50 %numel(filenames)
     
     filename = filenames(i).name;
+    cd('../matlab_files');
 
     % Create the measurement operator and its adjoint
     [A, At, Gw] = generate_data_basic(Nx,Ny,f,super_res,0);
@@ -107,6 +108,8 @@ for i = 1 : 50 %numel(filenames)
     imshow(result);
     fprintf("Reconstructed in %d iterations; bp snr: %d, snr: %d\n", t, rsnr_bp, rsnr);
     arr_snr(i) = rsnr;
+    
+    cd(path);
 end
 
 function A_norm = normalise(A)

@@ -144,23 +144,34 @@ gtds = imageDatastore('../datasets/augmented_dataset_linscale/*.fits', 'ReadFcn'
 %bpds = imageDatastore('../preprocessed/bp/*.fits', 'ReadFcn', @fitsreadres2double);
 bpds = imageDatastore('../back_projections/*.fits', 'ReadFcn', @fitsreadres2double);
 
-    
-%dstrain = combine(bpds, gtds);
-augmenter = imageDataAugmenter('RandRotation',[0 90],'RandXReflection',true);
-dstrain = randomPatchExtractionDatastore(bpds, gtds, [512, 512], 'PatchesPerImage',1, 'DataAugmentation',augmenter);
+%augmenter = imageDataAugmenter('RandRotation',[0 90],'RandXReflection',true);
+augmenter = imageDataAugmenter('RandXReflection',true, 'RandYReflection',true);
+rpeds = randomPatchExtractionDatastore(bpds, gtds, [512, 512], 'PatchesPerImage',1, 'DataAugmentation',augmenter);
+rpeds = shuffle(rpeds);
+
+%Split datastore
+%[dstrain, dstest] = splitEachLabel(rpeds, 0.9, 'randomized');
+
+LAST_IDX = rpeds.NumObservations;
+SPLIT_IDX = LAST_IDX * 0.8;
+
+dstrain = partitionByIndex(rpeds, 1 : SPLIT_IDX);
+dstest = partitionByIndex(rpeds, SPLIT_IDX+1 : LAST_IDX);
+dstest.MiniBatchSize = 1;
 
 
 %% options
 %uncomment to use only 2nd gpu
-%delete(gcp('nocreate'))
-%parpool('local', numel(1));
-%gpuDevice(2);
+% delete(gcp('nocreate'))
+% parpool('local', numel(1));
+% gpuDevice(2);
 
 options = trainingOptions('adam', ...
     'MaxEpochs',15, ...
-    'InitialLearnRate',1e-4, ...
+    'InitialLearnRate',1e-5, ...
     'ExecutionEnvironment','multi-gpu', ...
     'Plots','training-progress', ...
+    'Shuffle','every-epoch', ...
     'MiniBatchSize',8);
 %'L2Regularization',0.00001, ...
 
@@ -173,10 +184,13 @@ save net
 
 %% test net
 load net;
-for num_tests = 1 : 10
+%for n = 1 : dstest.NumObservations
+for n = 1 : 15
     test_idx = randi(numel(gtds.Files));
-    gt = readimage(gtds,test_idx);
-    bp = readimage(bpds,test_idx);
+    
+    [data, info] = readByIndex(dstest,n);
+    gt = cell2mat(data.ResponseImage);
+    bp = cell2mat(data.InputImage);
 
     max_gt = max(gt(:));
     bp = bp .* max_gt;

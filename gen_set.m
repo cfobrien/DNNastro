@@ -40,16 +40,16 @@ sigma = 0.07;
 add_noise = @(y) (y + (randn(size(y)) + 1i*randn(size(y)))*sigma/sqrt(2));
 
 % 2. Create the measurement operator and its adjoint
-[A, At, Gw] = generate_data_basic(Nx,Ny,f,super_res,0);
-
-Phi_t = @(x) HS_forward_operator(x,Gw,A);
-Phi = @(y) HS_adjoint_operator(y,Gw,At,Nx,Ny);
+% [A, At, Gw] = generate_data_basic(Nx,Ny,f,super_res,0);
+% 
+% Phi_t = @(x) HS_forward_operator(x,Gw,A);
+% Phi = @(y) HS_adjoint_operator(y,Gw,At,Nx,Ny);
 
 %% Iterate over all images in set
 %Attention: make this a parfor if generating operators only once.
 %or a regular for otherwise. Ask matthieu if we need to generate operators once per
 %image
-parfor  i = 1 : numel(filenames)
+for  i = 1 : numel(filenames)
     filename = filenames(i).name;
     cd('../matlab_files');
 
@@ -57,6 +57,18 @@ parfor  i = 1 : numel(filenames)
     max_gt = max(gt(:));
     
     gt = imresize((normalise(gt)),[512 512]);
+    
+    clear A
+    clear At
+    clear Gw
+    clear Phi_t
+    clear Phi
+    
+    % 2. Create the measurement operator and its adjoint
+    [A, At, Gw] = generate_data_basic(Nx,Ny,f,super_res,0);
+
+    Phi_t = @(x) HS_forward_operator(x,Gw,A);
+    Phi = @(y) HS_adjoint_operator(y,Gw,At,Nx,Ny);
     
     % 3. Create the measurements and the back-projection
     y = cell2mat(Phi_t(gt));
