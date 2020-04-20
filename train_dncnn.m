@@ -51,8 +51,44 @@ options = trainingOptions('adam', ...
     'Shuffle','every-epoch', ...
     'MiniBatchSize',8);
 
-dncnn = trainNetwork(dstrain, lgraph, options);
+%dncnn = trainNetwork(dstrain, lgraph, options);
 
+%% test net
+load dncnn;
+
+gtds = imageDatastore('../datasets/augmented_dataset_linscale/*.fits', 'ReadFcn', @fitsreadres2double);
+noisyds = imageDatastore('../datasets/augmented_dataset_linscale/*.fits', 'ReadFcn', @fits2noisy);
+augmenter = imageDataAugmenter('RandXReflection',true, 'RandYReflection',true);
+dstrain = randomPatchExtractionDatastore(...
+    gtds, noisyds, [64,64], 'DataAugmentation',augmenter);
+
+%for n = 1 : dstest.NumObservations
+for n = 1 : 15
+    test_idx = randi(dstrain.NumObservations);
+    
+    [data, info] = readByIndex(dstrain,n);
+    gt = cell2mat(data.ResponseImage);
+    bp = cell2mat(data.InputImage);
+    
+    res = normalise(cell2mat(compute_net(dncnn,bp,64)));
+    
+    figure
+    subplot(1,3,1);
+    imshow(gt);
+    title('Ground truth');
+    subplot(1,3,2);
+    imshow(bp);
+    title('Back projection');
+    subplot(1,3,3);
+    imshow(res);
+    impixelinfo;
+    rsnr = 20*log10(norm(gt(:))/norm(gt(:)-res(:)));
+    title(strcat('Reconstruction SNR: ', num2str(rsnr), ' dB'));
+    if ~exist('../results', 'dir')
+        mkdir('../results/');
+    end
+    saveas(gcf, ['../results/net_test_' mat2str(test_idx)]);
+end
 
 
 %% functions
