@@ -42,6 +42,12 @@ for i = 1 : 50 %numel(filenames)
     filename = filenames(i).name;
     cd('../matlab_files');
 
+    clear A
+    clear At
+    clear Gw
+    clear Phi_t
+    clear Phi
+    
     % Create the measurement operator and its adjoint
     [A, At, Gw] = generate_data_basic(Nx,Ny,f,super_res,0);
     Phi_t = @(x) HS_forward_operator(x,Gw,A);
