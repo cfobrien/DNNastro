@@ -2,6 +2,9 @@ close all;
 clear;
 clc;
 
+addpath('../datasets');
+addpath('../datasets/augmented_dataset_linscale');
+
 %% DnCNN architecture and implementation
 
 input_size = 64;
@@ -41,49 +44,59 @@ gtds = imageDatastore('../datasets/augmented_dataset_linscale/*.fits', 'ReadFcn'
 noisyds = imageDatastore('../datasets/augmented_dataset_linscale/*.fits', 'ReadFcn', @fits2noisy);
 augmenter = imageDataAugmenter('RandXReflection',true, 'RandYReflection',true);
 dstrain = randomPatchExtractionDatastore(...
-    gtds, noisyds, [64,64], 'DataAugmentation',augmenter);
+    noisyds, gtds, [64,64], 'DataAugmentation',augmenter);
 
+%% options
+%uncomment to use only 2nd gpu
+delete(gcp('nocreate'))
+parpool('local', numel(1));
+gpuDevice(2);
+
+%'LearnRateSchedule', 'piecewise',...
 options = trainingOptions('adam', ...
-    'MaxEpochs',15, ...
+    'MaxEpochs',10, ...
     'InitialLearnRate',1e-5, ...
     'ExecutionEnvironment','multi-gpu', ...
     'Plots','training-progress', ...
     'Shuffle','every-epoch', ...
+    'L2Regularization',0.01, ...
     'MiniBatchSize',8);
 
-%dncnn = trainNetwork(dstrain, lgraph, options);
+%% train and save
+%uncomment to continue training previously trained network
+load dncnn; lgraph = layerGraph(dncnn);
+
+dncnn = trainNetwork(dstrain, lgraph, options);
+save dncnn
 
 %% test net
 load dncnn;
 
-gtds = imageDatastore('../datasets/augmented_dataset_linscale/*.fits', 'ReadFcn', @fitsreadres2double);
-noisyds = imageDatastore('../datasets/augmented_dataset_linscale/*.fits', 'ReadFcn', @fits2noisy);
-augmenter = imageDataAugmenter('RandXReflection',true, 'RandYReflection',true);
-dstrain = randomPatchExtractionDatastore(...
-    gtds, noisyds, [64,64], 'DataAugmentation',augmenter);
-
-%for n = 1 : dstest.NumObservations
+%for n = 1 : dstrain.NumObservations
 for n = 1 : 15
-    test_idx = randi(dstrain.NumObservations);
+    test_idx = randi(numel(gtds.Files));
     
-    [data, info] = readByIndex(dstrain,n);
-    gt = cell2mat(data.ResponseImage);
-    bp = cell2mat(data.InputImage);
+    %[data, info] = readByIndex(dstrain,n);
+    %noisy = cell2mat(data.InputImage);
+    %gt = cell2mat(data.ResponseImage);
     
-    res = normalise(cell2mat(compute_net(dncnn,bp,64)));
+    gt = normalise(readimage(gtds,test_idx));
+    noisy = normalise(readimage(noisyds,test_idx));
+    
+    res = normalise(cell2mat(compute_net(dncnn,noisy,64)));
     
     figure
     subplot(1,3,1);
     imshow(gt);
     title('Ground truth');
     subplot(1,3,2);
-    imshow(bp);
-    title('Back projection');
+    imshow(noisy);
+    title('Image with Gaussian AWN');
     subplot(1,3,3);
     imshow(res);
     impixelinfo;
     rsnr = 20*log10(norm(gt(:))/norm(gt(:)-res(:)));
-    title(strcat('Reconstruction SNR: ', num2str(rsnr), ' dB'));
+    title(strcat('Denoising SNR: ', num2str(rsnr), ' dB'));
     if ~exist('../results', 'dir')
         mkdir('../results/');
     end
@@ -105,7 +118,8 @@ function out = fits2noisy(file)
     % Noise addition operator
     sigma = 0.07;
     add_noise_to_picture = @(x) x + sigma*randn(size(x));
-    out = add_noise_to_picture(fitsreadres2double(file));
+    out = fitsreadres2double(file);
+    out = add_noise_to_picture(out);
 end
 
 function o = compute_net(net,I,n)
