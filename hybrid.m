@@ -17,6 +17,10 @@ if ~exist('../hybrid_reconstructions', 'dir')
     mkdir('../hybrid_reconstructions/');
 end
 
+if ~exist('../results', 'dir')
+    mkdir('../results/');
+end
+
 %% Retrieve filenames of ground truths, compute and save BPs to form a dataset
 filenames = dir(fullfile('../datasets/augmented_dataset_linscale', '*fits'));
 
