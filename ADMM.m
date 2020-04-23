@@ -35,9 +35,13 @@ sigma = 0.07;
 % Noise addition operator
 add_noise = @(y) (y + (randn(size(y)) + 1i*randn(size(y)))*sigma/sqrt(2));
 
-arr_snr = zeros(50, 1);
+file = fopen('../results/admm_results.txt', 'wt');
 
-for i = 1 : 50 %numel(filenames)
+numiter = 5;%numel(filenames); %used to dictate how many images to run on
+arr_snr = zeros(numiter, 1);
+arr_ext = zeros(numiter, 1);
+
+for i = 1 : numiter
     
     filename = filenames(i).name;
     cd('../matlab_files');
@@ -78,15 +82,15 @@ for i = 1 : 50 %numel(filenames)
     nt = sc(st);
     delta = 1e-7;
     rho = 1e-7; %threshold value
-    rel_tol = 1e-2;
-    rel_tol2 = 1e-2;
-    max_iter = 10;
+    rel_tol = 1e-5;
+    rel_tol2 = 1e-5;
+    max_iter = 1000;
     fprev = 0;
     xprev = zeros(512);
     t = 1;
     fval = 9999;
 
-    %tstart=tic;
+    tstart=tic;
     converged = false;
     
     while(~converged)
@@ -103,16 +107,25 @@ for i = 1 : 50 %numel(filenames)
         fval = f(xt);
         %fprintf("%e\n", (abs((fval - fprev)/fval) < rel_tol));
     end
-    
+    tend=toc(tstart);
     rsnr = 20*log10(norm(gt(:))/norm(gt(:)-xt(:)));
     rsnr_bp = 20*log10(norm(gt(:))/norm(gt(:)-bp(:)));
     result = cat(2,gt,bp,xt);
     imshow(result);
-    fprintf("Reconstructed in %d iterations; bp snr: %d, snr: %d\n", t, rsnr_bp, rsnr);
+    %fprintf("Reconstructed in %d iterations; bp snr: %d, snr: %d\n", t, rsnr_bp, rsnr);
+    fprintf(file, "SNR: %e Reconstruction Time: %es (%d iterations)\n", rsnr, tend, t);
+    imwrite(xt, ['../ADMM_reconstructions/' filename], 'png');
     arr_snr(i) = rsnr;
-    
+    arr_ext(i) = tend;
     cd(path);
 end
+
+snr_stdev = std(arr_snr);
+ext_stdev = std(arr_ext);
+avg_snr = sum(arr_snr)/numel(arr_snr);
+avg_ext = sum(arr_ext)/numel(arr_ext);
+fprintf(file, "\nAverage SNR = %e, Standard Deviation = %e\n ", avg_snr, snr_stdev);
+fprintf(file, "\nAverage ex. time = %e, Standard Deviation = %e\n ", avg_ext, ext_stdev);
 
 function A_norm = normalise(A)
     A_norm = (A-min(A(:))) ./ (max(A(:)-min(A(:))));
