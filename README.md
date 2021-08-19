@@ -1,26 +1,6 @@
 # DNNastro
-```
-git clone https://github.com/cfobrien/DNNastro.git
-```
-Pull changes from the master repository to your local repository
-```
-git pull
-```
-```git add *``` OR ```git add <individual files/directories>```
-```
-git commit -m "message describing changes"
-```
-Push changes from your local repository to the master repository
-```
-git push
-```
+## Three methods for super-resolution radio-interferometry imaging
 
-To avoid working on the master branch
-Create a local branch with
-```
-git checkout -b <local_branch_name>
-```
-Push a local branch to the github
-```
-git push -u origin <branch_name>
-```
+- M1: ADMM
+- M2: U-Net CNN
+- M3: ADMM with Denoising CNN as a plug and play proximal operator
